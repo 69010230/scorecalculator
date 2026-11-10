@@ -1,0 +1,209 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>เครื่องคิดคะแนนสอบปลายภาค</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap">
+<style>
+  /* Layout: inputs on the left, an answer-sheet style result on the right; stacks on phones. */
+  :root {
+    --bg: #eef1f6;
+    --surface: #ffffff;
+    --fg: #101828;
+    --muted: #546074;
+    --line: #d5dbe6;
+    --accent: #2447d6;
+    --accent-soft: #e6ebfc;
+    --right: #12805c;
+    --wrong: #c2362b;
+    --font-body: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+    --font-num: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1320; --surface: #161d2e; --fg: #e8ecf4; --muted: #9aa6bd;
+      --line: #2a3550; --accent: #7c98ff; --accent-soft: #1f2a4d;
+      --right: #4cc38f; --wrong: #ff7a6e; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1320; --surface: #161d2e; --fg: #e8ecf4; --muted: #9aa6bd;
+    --line: #2a3550; --accent: #7c98ff; --accent-soft: #1f2a4d;
+    --right: #4cc38f; --wrong: #ff7a6e; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    padding-block: 32px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+  h1 { font-size: clamp(1.5rem, 4vw, 2rem); line-height: 1.25; margin: 0; font-weight: 600; text-wrap: balance; }
+  .lede { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+  @media (max-width: 720px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; min-width: 0; }
+  .panel h2 { font-size: 0.8125rem; font-weight: 600; margin: 0 0 16px; color: var(--muted); letter-spacing: 0.04em; }
+
+  form { display: flex; flex-direction: column; gap: 16px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-weight: 500; font-size: 0.9375rem; }
+  .field .hint { font-size: 0.8125rem; color: var(--muted); }
+  .inputrow { display: flex; align-items: center; gap: 10px; }
+  input[type="number"] {
+    width: 100%; min-width: 0;
+    font: 500 1.125rem var(--font-num);
+    color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="number"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  .unit { color: var(--muted); font-size: 0.875rem; white-space: nowrap; }
+  .sample { font-size: 0.8125rem; color: var(--muted); margin: 0; }
+
+  .hero { display: flex; flex-direction: column; gap: 2px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .hero .k { color: var(--muted); font-size: 0.9375rem; }
+  .hero .v { font-family: var(--font-num); font-weight: 600; font-size: clamp(3rem, 10vw, 4.5rem); line-height: 1.05; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .hero .v small { font-family: var(--font-body); font-size: 1rem; font-weight: 500; color: var(--muted); margin-left: 8px; }
+
+  dl { margin: 0; display: flex; flex-direction: column; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .row dt { color: var(--muted); min-width: 0; }
+  .row dd { margin: 0; font-family: var(--font-num); font-weight: 600; font-size: 1.125rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .row.right dd { color: var(--right); }
+  .row.wrong dd { color: var(--wrong); }
+
+  .sheet-title { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 18px 0 10px; font-size: 0.8125rem; color: var(--muted); }
+  .legend { display: flex; gap: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .dot.r { background: var(--right); }
+  .dot.w { border: 2px solid var(--wrong); }
+  .sheet { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cell { width: 14px; height: 14px; border-radius: 3px; background: var(--right); }
+  .cell.w { background: transparent; border: 2px solid var(--wrong); }
+
+  .note { margin: 16px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); font-size: 0.9375rem; }
+  .note[hidden] { display: none; }
+  .foot { font-size: 0.8125rem; color: var(--muted); margin: 0; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>เครื่องคิดคะแนนสอบปลายภาค</h1>
+    <p class="lede">เผลอคำนวณคะแนน</p>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="in-h">
+      <h2 id="in-h">ข้อมูลของคุณนะจ้ะ</h2>
+      <form id="f" novalidate>
+        <div class="field">
+          <label for="goal">คะแนนรวมที่อยากได้ (เต็ม 100)</label>
+          <div class="inputrow"><input id="goal" type="number" inputmode="decimal" step="any" value="80"><span class="unit">คะแนน</span></div>
+        </div>
+        <div class="field">
+          <label for="lab">คะแนนเก็บแล็บที่ได้</label>
+          <div class="inputrow"><input id="lab" type="number" inputmode="decimal" step="any" value="10"><span class="unit">คะแนน</span></div>
+        </div>
+        <div class="field">
+          <label for="quiz">คะแนนเก็บควิซที่ได้</label>
+          <div class="inputrow"><input id="quiz" type="number" inputmode="decimal" step="any" value="6.88"><span class="unit">คะแนน</span></div>
+        </div>
+        <div class="field">
+          <label for="ppq">คะแนนต่อข้อ</label>
+          <div class="inputrow"><input id="ppq" type="number" inputmode="decimal" step="any" min="0" value="2"><span class="unit">คะแนน/ข้อ</span></div>
+          <span class="hint">ข้อสอบ 50 ข้อ 100 คะแนน เฉลี่ยข้อละ 2 คะแนน</span>
+        </div>
+        <p class="sample">ค่าที่ใส่ไว้เป็นตัวอย่าง</p>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="out-h" aria-live="polite">
+      <h2 id="out-h">ผลการคำนวณ</h2>
+      <div class="hero">
+        <span class="k">คะแนนสอบปลายภาคที่ต้องได้</span>
+        <span class="v"><span id="need">–</span><small>คะแนน</small></span>
+      </div>
+      <dl>
+        <div class="row"><dt>ถ้าทำถูก ≥ ร้อยละ 90 ต้องทำ</dt><dd id="ninety">–</dd></div>
+        <div class="row"><dt>จำนวนข้อทั้งหมดที่ต้องทำ</dt><dd id="items">–</dd></div>
+        <div class="row right"><dt>ต้องทำถูก</dt><dd id="right">–</dd></div>
+        <div class="row wrong"><dt>ผิดได้</dt><dd id="wrong">–</dd></div>
+      </dl>
+      <div class="sheet-title">
+        <span>กระดาษคำตอบ</span>
+        <span class="legend"><span><i class="dot r"></i>ถูก</span><span><i class="dot w"></i>ผิดได้</span></span>
+      </div>
+      <div class="sheet" id="sheet" role="img" aria-label="ผังจำนวนข้อที่ต้องถูกและผิดได้"></div>
+      <p class="note" id="note" hidden></p>
+    </section>
+  </div>
+
+  <p class="foot">คำนวณตามสูตร: คะแนนปลายภาคที่ต้องได้ = เป้า − แล็บ − ควิซ (ปัดขึ้น) จากนั้นหัก 10 คะแนน แล้วหารด้วยคะแนนต่อข้อ ข้อที่ต้องถูก = จำนวนข้อ × 0.9 (ปัดขึ้น)</p>
+</div>
+
+<script>
+  (function () {
+    var f = Math.fround;
+    var ids = ["goal", "lab", "quiz", "ppq"];
+    var el = {};
+    ["need", "ninety", "items", "right", "wrong", "sheet", "note"].forEach(function (k) { el[k] = document.getElementById(k); });
+    ids.forEach(function (k) { el[k] = document.getElementById(k); });
+
+    function num(id) { var v = parseFloat(el[id].value); return isFinite(v) ? v : NaN; }
+    function fmt(n) { return String(n); }
+
+    function compute() {
+      var goal = num("goal"), lab = num("lab"), quiz = num("quiz"), ppq = num("ppq");
+      var bad = [goal, lab, quiz].some(isNaN) || !(ppq > 0);
+      if (bad) {
+        ["need", "ninety", "items", "right", "wrong"].forEach(function (k) { el[k].textContent = "–"; });
+        el.sheet.innerHTML = "";
+        el.note.hidden = false;
+        el.note.textContent = "กรอกตัวเลขให้ครบทุกช่อง และให้คะแนนต่อข้อมากกว่า 0";
+        return;
+      }
+      // Same float arithmetic order as the C program.
+      var need = Math.ceil(f(f(goal - lab) - quiz));
+      var ninety = Math.ceil(f(need - 10));
+      var items = Math.ceil(f(ninety / f(ppq)));
+      var right = Math.ceil(f(f(items / 10) * 9));
+      var wrong = items - right;
+
+      el.need.textContent = fmt(need);
+      el.ninety.textContent = fmt(ninety);
+      el.items.textContent = fmt(items) + " ข้อ";
+      el.right.textContent = fmt(right) + " ข้อ";
+      el.wrong.textContent = fmt(wrong) + " ข้อ";
+
+      var html = "";
+      if (items > 0 && items <= 150) {
+        for (var i = 0; i < items; i++) html += '<span class="cell' + (i < right ? "" : " w") + '"></span>';
+      }
+      el.sheet.innerHTML = html;
+
+      var msg = "";
+      if (need <= 0) msg = "คะแนนเก็บของคุณถึงเป้าแล้ว ไม่ต้องใช้คะแนนปลายภาคเพิ่ม";
+      else if (need > 100) msg = "คะแนนที่ต้องได้เกิน 100 ซึ่งเกินคะแนนเต็มปลายภาค ลองลดเป้าหมายลง";
+      else if (ninety <= 0) msg = "หลังหัก 10 คะแนนแล้วไม่เหลือข้อที่ต้องทำ";
+      el.note.hidden = !msg;
+      el.note.textContent = msg;
+    }
+
+    ids.forEach(function (k) { el[k].addEventListener("input", compute); });
+    document.getElementById("f").addEventListener("submit", function (e) { e.preventDefault(); });
+    compute();
+  })();
+</script>
+
+</body></html>
