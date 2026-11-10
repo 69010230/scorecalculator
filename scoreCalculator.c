@@ -2,15 +2,18 @@
 #include <math.h>
 int main() {
      
-    float goal, quiz, lab;
+    float goal, quiz, lab, midterm;
     printf("คะแนนที่อยากได้(เต็ม 100): ");
     scanf("%f", &goal);
     printf("คะแนนเก็บแล็บที่ได้: ");
     scanf("%f", &lab);
     printf("คะแนนเก็บควิซที่ได้: ");
     scanf("%f", &quiz);
+    printf("คะแนนกลางภาค (เต็ม 100): ");
+    scanf("%f", &midterm);
+    midterm = (midterm/100)*35;
 
-    float realtobeDoneScore = goal - lab - quiz;
+    float realtobeDoneScore = goal - lab - quiz - midterm;
     printf("\nคะแนนสอบปลายภาคที่ต้องได้คือ: %.0f\n", ceil(realtobeDoneScore));
     float ninetypercentscore = ceil(realtobeDoneScore) - 10;
     printf("ถ้าทำถูก >= ร้อยละ90 จะต้องทำ %.0f คะแนน\n", ceil(ninetypercentscore));
